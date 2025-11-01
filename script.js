@@ -66,8 +66,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderPrograms();
     loadTheme();
     loadUserPreferences();
-    loadTheme();
-    loadUserPreferences();
     
     document.getElementById('signinForm').addEventListener('submit', handleSignIn);
     document.getElementById('signupForm').addEventListener('submit', handleSignUp);
@@ -1100,6 +1098,14 @@ async function exportData() {
 }
 
 async function clearAllData() {
+    showAlert('clearData', 'Clear All Tasks', 'Are you sure you want to delete all your tasks? This action cannot be undone.');
+}
+
+async function deleteAccount() {
+    showAlert('deleteAccount', 'Delete Account', 'Are you sure you want to delete your account? All your data will be permanently lost and this action cannot be undone.');
+}
+
+async function performClearAllData() {
     try {
         const { error } = await supabase
             .from('tasks')
@@ -1118,27 +1124,21 @@ async function clearAllData() {
     }
 }
 
-async function deleteAccount() {
+async function performDeleteAccount() {
     try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { error: tasksError } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('user_id', currentUser.id);
         
-        if (sessionError) throw sessionError;
-        if (!session) throw new Error('No active session');
+        if (tasksError) throw tasksError;
 
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || 'Failed to delete account');
-        }
-
+        const { error: programsError } = await supabase
+            .from('user_programs')
+            .delete()
+            .eq('user_id', currentUser.id);
+        
+        if (programsError) throw programsError;
         localStorage.removeItem(`userAvatar_${currentUser.id}`);
         localStorage.removeItem('userName');
         localStorage.removeItem('userBio');
@@ -1147,32 +1147,16 @@ async function deleteAccount() {
         localStorage.removeItem('emailNotifications');
         localStorage.removeItem('taskReminders');
         localStorage.removeItem('weeklyReports');
+        localStorage.removeItem('theme');
 
-        showNotification('Account deleted successfully!', 'success');
-        
-        logout();
-    } catch (error) {
-        console.error('Error deleting account:', error);
-        
-        if (error.message.includes('Failed to delete account')) {
-            showNotification('Account data deleted. Please contact support to complete account removal.', 'success');
-            
-            await supabase.from('tasks').delete().eq('user_id', currentUser.id);
-            await supabase.from('user_programs').delete().eq('user_id', currentUser.id);
-            
-            localStorage.removeItem(`userAvatar_${currentUser.id}`);
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userBio');
-            localStorage.removeItem('defaultPriority');
-            localStorage.removeItem('defaultCategory');
-            localStorage.removeItem('emailNotifications');
-            localStorage.removeItem('taskReminders');
-            localStorage.removeItem('weeklyReports');
-            
+        showNotification('Account info deleted successfully! Please contact support for full account removal.', 'success');
+        setTimeout(() => {
             logout();
-        } else {
-            showNotification('Error deleting account: ' + error.message, 'error');
-        }
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error deleting account info:', error);
+        showNotification('Error deleting account info: ' + error.message, 'error');
     }
 }
 
@@ -1286,10 +1270,10 @@ function handleAlertConfirm() {
             unenrollProgram(data);
             break;
         case 'clearData':
-            clearAllData();
+            performClearAllData();
             break;
         case 'deleteAccount':
-            deleteAccount();
+            performDeleteAccount();
             break;
     }
     
