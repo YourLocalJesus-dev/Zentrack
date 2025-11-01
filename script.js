@@ -61,11 +61,11 @@ const programTemplates = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', function() {
-    checkAuthState();
-    loadTasks();
-    updateDashboard();
+document.addEventListener('DOMContentLoaded', async function() {
+    await checkAuthState(); 
     renderPrograms();
+    loadTheme();
+    loadUserPreferences();
     loadTheme();
     loadUserPreferences();
     
@@ -133,6 +133,8 @@ async function checkAuthState() {
         currentUser = user;
         showDashboard();
         loadUserData();
+    } else {
+        showLanding();
     }
 }
 
